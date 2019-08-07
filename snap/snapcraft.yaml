@@ -1,0 +1,102 @@
+name: authenticator-joc
+adopt-info: authenticator
+
+grade: stable
+confinement: strict
+base: core18
+
+passthrough:
+  license: GPL-3.0+
+
+plugs:
+  gnome-3-32-1804:
+    interface: content
+    target: $SNAP/gnome-platform
+    default-provider: gnome-3-32-1804
+  gtk-3-themes:
+    interface: content
+    target: $SNAP/data-dir/themes
+    default-provider: gtk-common-themes
+  icon-themes:
+    interface: content
+    target: $SNAP/data-dir/icons
+    default-provider: gtk-common-themes
+  sound-themes:
+    interface: content
+    target: $SNAP/data-dir/sounds
+    default-provider: gtk-common-themes
+
+slots:
+  # for GtkApplication registration
+  authenticator:
+    interface: dbus
+    bus: session
+    name: com.github.bilelmoussaoui.Authenticator
+
+apps:
+  authenticator:
+    command: bin/desktop-launch $SNAP/usr/bin/authenticator
+    desktop: usr/share/applications/com.github.bilelmoussaoui.Authenticator.desktop
+    common-id: com.github.bilelmoussaoui.Authenticator.desktop
+    plugs:
+      - desktop
+      - desktop-legacy
+      - gsettings
+      - wayland
+      - x11
+      - home
+      - password-manager-service
+    environment:
+      PYTHONPATH: $SNAP/gnome-platform/usr/lib/python3.6/site-packages:$SNAP/lib/python3.6/site-packages
+      LD_LIBRARY_PATH: $SNAP/gnome-platform/lib/$SNAPCRAFT_ARCH_TRIPLET:$SNAP/gnome-platform/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$SNAP/gnome-platform/usr/lib:$SNAP/gnome-platform/usr/lib/vala-current:$LD_LIBRARY_PATH
+
+
+parts:
+  desktop-gnome-platform:
+    source: https://github.com/ubuntu/snapcraft-desktop-helpers.git
+    source-depth: 1
+    source-subdir: gtk
+    plugin: make
+    make-parameters: [ "FLAVOR=gtk3" ]
+    build-environment: &buildenv
+      - PATH: /snap/gnome-3-32-1804-sdk/current/usr/bin:$PATH
+      - XDG_DATA_DIRS: /snap/gnome-3-32-1804-sdk/current/usr/share:/usr/share:$XDG_DATA_DIRS
+      - LD_LIBRARY_PATH: /snap/gnome-3-32-1804-sdk/current/lib/$SNAPCRAFT_ARCH_TRIPLET:/snap/gnome-3-32-1804-sdk/current/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:/snap/gnome-3-32-1804-sdk/current/usr/lib:/snap/gnome-3-32-1804-sdk/current/usr/lib/vala-current:$LD_LIBRARY_PATH
+      - PKG_CONFIG_PATH: /snap/gnome-3-32-1804-sdk/current/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig:/snap/gnome-3-32-1804-sdk/current/usr/lib/pkgconfig:/snap/gnome-3-32-1804-sdk/current/usr/share/pkgconfig:$PKG_CONFIG_PATH
+      - GETTEXTDATADIRS: /snap/gnome-3-32-1804-sdk/current/usr/share/gettext-current:$GETTEXTDATADIRS
+      - GDK_PIXBUF_MODULE_FILE: /snap/gnome-3-32-1804-sdk/current/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/gdk-pixbuf-current/loaders.cache
+    build-snaps: [ gnome-3-32-1804-sdk/latest/stable ]
+    override-build: |
+      snapcraftctl build
+      mkdir -pv $SNAPCRAFT_PART_INSTALL/gnome-platform
+
+  authenticator-python:
+    plugin: python
+    source: https://gitlab.gnome.org/World/Authenticator.git
+    source-tag: '3.32.2'
+    source-depth: 1
+    requirements:
+      - requirements.txt
+    stage-packages:
+      - python3-gi
+      - gir1.2-secret-1
+    after: [desktop-gnome-platform]
+
+  authenticator:
+    plugin: meson
+    meson-version: "0.50.0"
+    source: https://gitlab.gnome.org/World/Authenticator.git
+    source-tag: '3.32.2'
+    parse-info: [usr/share/metainfo/com.github.bilelmoussaoui.Authenticator.appdata.xml]
+    source-depth: 1
+    build-environment: *buildenv
+    meson-parameters:
+      - --prefix=/snap/authenticator-joc/current/usr
+    organize:
+      snap/authenticator-joc/current/usr: usr
+    override-build: |
+      sed -i -e 's|Icon=@APP_ID@$|Icon=${SNAP}/meta/gui/com.github.bilelmoussaoui.Authenticator.svg|g' data/com.github.bilelmoussaoui.Authenticator.desktop.in.in
+      snapcraftctl build
+      mkdir -p $SNAPCRAFT_PART_INSTALL/meta/gui/
+      cp ../src/data/icons/hicolor/scalable/apps/com.github.bilelmoussaoui.Authenticator.svg $SNAPCRAFT_PART_INSTALL/meta/gui/
+    after: [authenticator-python]
