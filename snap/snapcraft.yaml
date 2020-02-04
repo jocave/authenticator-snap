@@ -44,8 +44,8 @@ apps:
       - gsettings
       - wayland
       - x11
-      - home
       - password-manager-service
+      - network
     environment:
       PYTHONPATH: $SNAP/gnome-platform/usr/lib/python3.6/site-packages:$SNAP/lib/python3.6/site-packages
       LD_LIBRARY_PATH: $SNAP/gnome-platform/lib/$SNAPCRAFT_ARCH_TRIPLET:$SNAP/gnome-platform/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$SNAP/gnome-platform/usr/lib:$SNAP/gnome-platform/usr/lib/vala-current:$LD_LIBRARY_PATH
